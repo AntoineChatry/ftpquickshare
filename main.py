@@ -1,20 +1,34 @@
-from ftplib import FTP
+from ftplib import FTP, error_perm
 import time
 import sys
 import os
 
-file_path = sys.argv[1]
 ftp = FTP()
 ftp.connect("yourftpip", 21)
-
-# Login to the FTP server
 ftp.login("login", "password")
-# switch directory to
 ftp.cwd("yourdir")
-with open(file_path, "rb") as f:
-    ftp.storbinary("STOR " + os.path.basename(file_path), f)
-# sleep for 1 seconds
-time.sleep(1)
 
-# Logout from the FTP server
+print(f"Starting upload for: {sys.argv[1]}")
+
+def upload(ftp, path):
+    if os.path.isfile(path):
+        print(f"Uploading file: {path}")
+        with open(path, "rb") as file:
+            ftp.storbinary("STOR " + os.path.basename(path), file)
+    elif os.path.isdir(path):
+        print(f"Creating directory: {os.path.basename(path)}")
+        try:
+            ftp.mkd(os.path.basename(path))
+        except error_perm as e:
+            if not e.args[0].startswith("550"):
+                raise
+        ftp.cwd(os.path.basename(path))
+        for name in os.listdir(path):
+            upload(ftp, os.path.join(path, name))
+        ftp.cwd("..")
+
+
+
+upload(ftp, sys.argv[1])
+
 ftp.quit()
